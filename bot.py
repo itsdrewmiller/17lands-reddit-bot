@@ -7,7 +7,7 @@ import requests
 from difflib import get_close_matches
 
 # List of expansions supported by 17Lands
-SUPPORTED_EXPANSIONS = ['WOE', 'LTR', 'MOM', 'ONE', 'BRO', 'DMU', 'HBG', 'SNC', 'NEO', 'VOW', 'MID', 'AFR']
+SUPPORTED_EXPANSIONS = ['SNC'] # ['WOE', 'LTR', 'MOM', 'ONE', 'BRO', 'DMU', 'HBG', 'SNC', 'NEO', 'VOW', 'MID', 'AFR']
 
 # Cache for card data and mapping
 card_data_cache = {}
@@ -64,7 +64,7 @@ def main():
                                     card_info = get_card_info(card_name, card_data)
                                     if card_info:
                                         alsa = card_info['avg_seen']
-                                        gih_wr = card_info['ever_drawn_win_rate'] * 100
+                                        gih_wr = card_info['ever_drawn_win_rate'] 
                                         reply_text += f"**{card_info['name']}** ({expansion})\n"
                                         reply_text += f"- ALSA: {alsa:.2f}\n"
                                         reply_text += f"- GIH WR: {gih_wr:.2f}%\n\n"
