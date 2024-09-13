@@ -71,7 +71,7 @@ def main():
             continue
 
 def fetch_card_data():
-    url = 'https://www.17lands.com/card_ratings/data'
+    url = 'https://www.17lands.com/card_ratings/data?expansion=BLB&format=PremierDraft'
     try:
         response = requests.get(url)
         data = response.json()
