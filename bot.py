@@ -74,7 +74,8 @@ def main():
                                         card_found = True
                                         break  # Use the first matching expansion
                         if not card_found:
-                            reply_text += f"Could not find data for card: {card_name}\n\n"
+                            # reply_text += f"Could not find data for card: {card_name}\n\n"
+                            reply_text = ""
                     else:
                         reply_text += f"Could not find expansions for card: {card_name}\n\n"
 
