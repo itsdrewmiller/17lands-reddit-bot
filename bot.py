@@ -61,9 +61,10 @@ def main():
                                 # Fetch or get cached card data for the expansion
                                 card_data = get_card_data(expansion)
                                 if card_data:
-                                    print(card_data)
                                     card_info = get_card_info(card_name, card_data)
                                     if card_info:
+                                        print(card_info)
+                                        print(vars(card_info))
                                         alsa = card_info['avg_seen']
                                         gih_wr = card_info['ever_drawn_win_rate'] * 100
                                         reply_text += f"**{card_info['name']}** ({expansion})\n"
