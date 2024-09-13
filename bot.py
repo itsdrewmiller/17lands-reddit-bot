@@ -154,7 +154,8 @@ def fetch_card_data(expansion, format='PremierDraft'):
     url = 'https://www.17lands.com/card_ratings/data'
     params = {
         'expansion': expansion,
-        'format': format
+        'format': format,
+        'start_date': '2000-01-01'
     }
     try:
         response = requests.get(url, params=params)
