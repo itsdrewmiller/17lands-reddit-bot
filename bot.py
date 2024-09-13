@@ -22,7 +22,7 @@ def main():
     card_data_last_fetched = time.time()
 
     # Regex pattern to find [[Card Name]] syntax
-    pattern = r'\[\[([^\[\]]+)\]\]'
+    pattern = r'\\\[\\\[([^\[\]]+)\\\]\\\]'
 
     for comment in subreddit.stream.comments(skip_existing=False):
         print(comment.body)
