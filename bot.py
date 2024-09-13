@@ -97,8 +97,6 @@ def main():
                             time.sleep(10*60)
                         except Exception as e:
                             print(f"Failed to reply to comment {comment.id}: {e}")
-            else:
-                print(f"No matches found in comment {comment.id}")
         except Exception as e:
             print(f"Error processing comment {comment.id}: {e}")
             continue
