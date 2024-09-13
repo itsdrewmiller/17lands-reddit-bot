@@ -61,6 +61,7 @@ def main():
                                 # Fetch or get cached card data for the expansion
                                 card_data = get_card_data(expansion)
                                 if card_data:
+                                    print(vars(card_data))
                                     card_info = get_card_info(card_name, card_data)
                                     if card_info:
                                         alsa = card_info['avg_seen']
