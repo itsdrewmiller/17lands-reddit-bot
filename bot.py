@@ -25,7 +25,7 @@ def main():
         password=os.environ['REDDIT_PASSWORD']
     )
 
-    subreddit = reddit.subreddit('17lands')
+    subreddit = reddit.subreddit('lrcast')
 
     # Build initial card-expansion mapping
     build_card_expansion_mapping()
@@ -35,7 +35,7 @@ def main():
     # Regex pattern to find [[Card Name]] syntax, handling escaped characters
     pattern = re.compile(r'\[\[([^\[\]]+)\]\]')
 
-    for comment in subreddit.stream.comments(skip_existing=False):
+    for comment in subreddit.stream.comments(skip_existing=True):
         try:
             # Skip own comments
             if comment.author == reddit.user.me():
@@ -65,9 +65,12 @@ def main():
                                     if card_info:
                                         alsa = card_info['avg_seen']
                                         gih_wr = card_info['ever_drawn_win_rate'] * 100
-                                        reply_text += f"**{card_info['name']}** ({expansion})\n"
-                                        reply_text += f"- ALSA: {alsa:.2f}\n"
-                                        reply_text += f"- GIH WR: {gih_wr:.2f}%\n\n"
+                                        color = card_info['color']
+                                        rarity = card_info['rarity'][0].upper()
+
+                                        reply_text += f"**{card_info['name']}** {color}-{rarity} ({expansion})\n"
+                                        reply_text += f"- Average Last Seen At: {alsa:.2f}\n"
+                                        reply_text += f"- Game in Hand Win Rate: {gih_wr:.2f}%\n\n"
                                         card_found = True
                                         break  # Use the first matching expansion
                         if not card_found:
