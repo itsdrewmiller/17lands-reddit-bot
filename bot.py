@@ -24,7 +24,8 @@ def main():
     # Regex pattern to find [[Card Name]] syntax
     pattern = r'\[\[([^\[\]]+)\]\]'
 
-    for comment in subreddit.stream.comments(skip_existing=True):
+    for comment in subreddit.stream.comments(skip_existing=False):
+        print(comment.body)
         try:
             # Skip own comments
             if comment.author == reddit.user.me():
