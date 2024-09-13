@@ -48,6 +48,7 @@ def main():
 
             # Remove backslashes from the comment body to handle escaped characters
             comment_body = comment.body.replace('\\', '')
+            print(comment_body)
 
             matches = pattern.findall(comment_body)
             if matches:
