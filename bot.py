@@ -72,7 +72,6 @@ def main():
                                         reply_text += f"**{card_info['name']}** {color}-{rarity} ({expansion})\n"
                                         reply_text += f"- Average Last Seen At: {alsa:.2f}\n"
                                         reply_text += f"- Game in Hand Win Rate: {gih_wr:.2f}%\n\n"
-                                        reply_text += f"(data sourced from 17lands.com and scryfall.com)\n\n"
                                         card_found = True
                                         break  # Use the first matching expansion
                         if not card_found:
@@ -83,6 +82,7 @@ def main():
                         reply_text = ""
 
                 if reply_text:
+                    reply_text += f"(data sourced from 17lands.com and scryfall.com)\n\n"
                     # Check if we have already replied
                     replied = False
                     comment.refresh()
