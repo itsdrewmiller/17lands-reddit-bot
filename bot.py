@@ -83,10 +83,8 @@ def main():
                                 print(f"Expansion {expansion} not supported by 17Lands.")
                         if not card_found:
                             print(f"Could not find data for card: {card_name}\n\n")
-                            reply_text = ""
                     else:
                         print(f"Could not find expansions for card: {card_name}\n\n")
-                        reply_text = ""
 
                 if reply_text:
                     reply_text += f"(data sourced from 17lands.com and scryfall.com)\n\n"
