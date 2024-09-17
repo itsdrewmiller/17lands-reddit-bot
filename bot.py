@@ -85,7 +85,7 @@ def main():
                             print(f"Could not find data for card: {card_name}\n\n")
                             reply_text = ""
                     else:
-                        # reply_text += f"Could not find expansions for card: {card_name}\n\n"
+                        print(f"Could not find expansions for card: {card_name}\n\n")
                         reply_text = ""
 
                 if reply_text:
