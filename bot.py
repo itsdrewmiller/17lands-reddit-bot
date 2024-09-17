@@ -75,6 +75,12 @@ def main():
                                         reply_text += f"- Game in Hand Win Rate: {gih_wr:.2f}%\n\n"
                                         card_found = True
                                         break  # Use the first matching expansion
+                                    else:
+                                        print(f"Could not find data for card: {card_name} in expansion: {expansion}")
+                                else:
+                                    print(f"Could not find card data for expansion: {expansion}")
+                            else:
+                                print(f"Expansion {expansion} not supported by 17Lands.")
                         if not card_found:
                             print(f"Could not find data for card: {card_name}\n\n")
                             reply_text = ""
