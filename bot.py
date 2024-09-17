@@ -65,6 +65,7 @@ def main():
                                 if card_data:
                                     card_info = get_card_info(card_name, card_data)
                                     if card_info:
+                                        print(f"Found data for card: {card_name} in expansion: {expansion}")
                                         alsa = card_info['avg_seen']
                                         gih_wr = card_info['ever_drawn_win_rate'] * 100
                                         color = card_info['color']
