@@ -52,6 +52,7 @@ def main():
 
             matches = pattern.findall(comment_body)
             if matches:
+                print(f"Found card names in comment: {matches}")
                 reply_text = ''
                 for card_name in matches:
                     expansions = get_card_expansions(card_name)
@@ -75,7 +76,7 @@ def main():
                                         card_found = True
                                         break  # Use the first matching expansion
                         if not card_found:
-                            # reply_text += f"Could not find data for card: {card_name}\n\n"
+                            print(f"Could not find data for card: {card_name}\n\n")
                             reply_text = ""
                     else:
                         # reply_text += f"Could not find expansions for card: {card_name}\n\n"
