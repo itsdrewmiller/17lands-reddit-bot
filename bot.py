@@ -7,7 +7,7 @@ import requests
 from difflib import get_close_matches
 
 # List of expansions supported by 17Lands
-SUPPORTED_EXPANSIONS = ['KTK','XLN','RIX','DOM','GRN','RNA','WAR','ELD','THB','IKO','ZNR','KHM','STX','AFR','MID','VOW','NEO','SNC','DMU','BRO','ONE','MOM','MAT','WOE','LCI','MKM','OTJ','BLB','DSK','LTR','MH3','HBG','M21','M20','M19']
+SUPPORTED_EXPANSIONS = ['DSK','KTK','XLN','RIX','DOM','GRN','RNA','WAR','ELD','THB','IKO','ZNR','KHM','STX','AFR','MID','VOW','NEO','SNC','DMU','BRO','ONE','MOM','MAT','WOE','LCI','MKM','OTJ','BLB','DSK','LTR','MH3','HBG','M21','M20','M19']
 
 # Cache for card data and mapping
 card_data_cache = {}
