@@ -126,8 +126,8 @@ def build_card_expansion_mapping():
                 for card in data['data']:
                     card_name = card['name'].lower()
                     if card_name not in card_expansion_mapping:
-                        card_expansion_mapping[card_name] = set()
-                    card_expansion_mapping[card_name].add(expansion)
+                        card_expansion_mapping[card_name] = []
+                    card_expansion_mapping[card_name].append(expansion)
                 has_more = data.get('has_more', False)
                 url = data.get('next_page', '')
                 page += 1
