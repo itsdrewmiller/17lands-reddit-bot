@@ -71,9 +71,9 @@ def main():
                                         color = card_info['color']
                                         rarity = card_info['rarity'][0].upper()
                                         scryfall_link = "https://api.scryfall.com/cards/named?format=image&exact=" + card_name
-                                        reply_text += f"**[{card_info['name']}]({scryfall_link})** {color}-{rarity} ({expansion}); "
+                                        reply_text += f"[{card_info['name']}]({scryfall_link}) {color}-{rarity} ({expansion}); "
                                         reply_text += f"ALSA: {alsa:.2f}; "
-                                        reply_text += f"GIH WR: {gih_wr:.2f}%\n"
+                                        reply_text += f"GIH WR: {gih_wr:.2f}%\n\n"
                                         card_found = True
                                         break  # Use the first matching expansion
                                     else:
