@@ -7,7 +7,7 @@ import requests
 from difflib import get_close_matches
 
 # List of expansions supported by 17Lands
-SUPPORTED_EXPANSIONS = ['FDN','DSK','KTK','XLN','RIX','DOM','GRN','RNA','WAR','ELD','THB','IKO','ZNR','KHM','STX','AFR','MID','VOW','NEO','SNC','DMU','BRO','ONE','MOM','MAT','WOE','LCI','MKM','OTJ','BLB','DSK','LTR','MH3','HBG','M21','M20','M19']
+SUPPORTED_EXPANSIONS = ['SPM','EOE','FIN','TDM','DFT','PIO','FDN','DSK','KTK','XLN','RIX','DOM','GRN','RNA','WAR','ELD','THB','IKO','ZNR','KHM','STX','AFR','MID','VOW','NEO','SNC','DMU','BRO','ONE','MOM','MAT','WOE','LCI','MKM','OTJ','BLB','DSK','LTR','MH3','HBG','M21','M20','M19']
 
 # Cache for card data and mapping
 card_data_cache = {}
@@ -70,10 +70,10 @@ def main():
                                         gih_wr = card_info['ever_drawn_win_rate'] * 100
                                         color = card_info['color']
                                         rarity = card_info['rarity'][0].upper()
-
-                                        reply_text += f"**{card_info['name']}** {color}-{rarity} ({expansion})\n"
-                                        reply_text += f"- Average Last Seen At: {alsa:.2f}\n"
-                                        reply_text += f"- Game in Hand Win Rate: {gih_wr:.2f}%\n\n"
+                                        scryfall_link = "https://api.scryfall.com/cards/named?format=image&exact=" + card_name
+                                        reply_text += f"**[{card_info['name']}]({scryfall_link})** {color}-{rarity} ({expansion}); "
+                                        reply_text += f"ALSA: {alsa:.2f}; "
+                                        reply_text += f"GIH WR: {gih_wr:.2f}%\n"
                                         card_found = True
                                         break  # Use the first matching expansion
                                     else:
