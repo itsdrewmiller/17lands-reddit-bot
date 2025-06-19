@@ -4,6 +4,7 @@ import time
 import json
 import praw
 import requests
+import urllib.parse
 from difflib import get_close_matches
 
 # List of expansions supported by 17Lands
@@ -70,7 +71,7 @@ def main():
                                         gih_wr = card_info['ever_drawn_win_rate'] * 100
                                         color = card_info['color']
                                         rarity = card_info['rarity'][0].upper()
-                                        scryfall_link = "https://api.scryfall.com/cards/named?format=image&exact=" + card_name
+                                        scryfall_link = "https://api.scryfall.com/cards/named?format=image&exact=" + urllib.parse.quote(card_name)
                                         reply_text += f"[{card_info['name']}]({scryfall_link}) {color}-{rarity} ({expansion}); "
                                         reply_text += f"ALSA: {alsa:.2f}; "
                                         reply_text += f"GIH WR: {gih_wr:.2f}%  \n" # two spaces for reddit single line break
