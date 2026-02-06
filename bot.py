@@ -2,9 +2,9 @@ import os
 import re
 import time
 import json
+import threading
 import praw
 import requests
-import urllib.parse
 from difflib import get_close_matches
 
 # List of expansions supported by 17Lands
@@ -33,7 +33,19 @@ def main():
     global card_expansion_last_fetched
     card_expansion_last_fetched = time.time()
 
-    # Regex pattern to find [[Card Name]] syntax, handling escaped characters
+    # Start threads for both comments and submissions
+    comment_thread = threading.Thread(target=stream_comments, args=(reddit, subreddit), daemon=True)
+    submission_thread = threading.Thread(target=stream_submissions, args=(reddit, subreddit), daemon=True)
+
+    comment_thread.start()
+    submission_thread.start()
+
+    # Keep main thread alive
+    while True:
+        time.sleep(60)
+
+def stream_comments(reddit, subreddit):
+    """Monitor comment stream for card references."""
     pattern = re.compile(r'\[\[([^\[\]]+)\]\]')
 
     for comment in subreddit.stream.comments(skip_existing=True):
@@ -42,72 +54,120 @@ def main():
             if comment.author == reddit.user.me():
                 continue
 
-            # Refresh card-expansion mapping every 24 hours
-            if time.time() - card_expansion_last_fetched > 86400:
-                build_card_expansion_mapping()
-                card_expansion_last_fetched = time.time()
+            refresh_card_mapping_if_needed()
 
-            # Remove backslashes from the comment body to handle escaped characters
-            comment_body = comment.body.replace('\\', '')
-            print(comment_body)
+            # Remove backslashes to handle escaped characters
+            text = comment.body.replace('\\', '')
+            print(f"Comment: {text}")
 
-            matches = pattern.findall(comment_body)
-            if matches:
-                print(f"Found card names in comment: {matches}")
-                reply_text = ''
-                for card_name in matches:
-                    expansions = get_card_expansions(card_name)
-                    if expansions:
-                        card_found = False
-                        for expansion in expansions:
-                            if expansion in SUPPORTED_EXPANSIONS:
-                                # Fetch or get cached card data for the expansion
-                                card_data = get_card_data(expansion)
-                                if card_data:
-                                    card_info = get_card_info(card_name, card_data)
-                                    if card_info:
-                                        print(f"Found data for card: {card_name} in expansion: {expansion}")
-                                        alsa = card_info['avg_seen']
-                                        gih_wr = card_info['ever_drawn_win_rate'] * 100
-                                        color = card_info['color']
-                                        rarity = card_info['rarity'][0].upper()
-                                        scryfall_link = "https://api.scryfall.com/cards/named?format=image&exact=" + urllib.parse.quote(card_name)
-                                        reply_text += f"[{card_info['name']}]({scryfall_link}) {color}-{rarity} ({expansion}); "
-                                        reply_text += f"ALSA: {alsa:.2f}; "
-                                        reply_text += f"GIH WR: {gih_wr:.2f}%  \n" # two spaces for reddit single line break
-                                        card_found = True
-                                        break  # Use the first matching expansion
-                                    else:
-                                        print(f"Could not find data for card: {card_name} in expansion: {expansion}")
-                                else:
-                                    print(f"Could not find card data for expansion: {expansion}")
-                            else:
-                                print(f"Expansion {expansion} not supported by 17Lands.")
-                        if not card_found:
-                            print(f"Could not find data for card: {card_name}\n\n")
-                    else:
-                        print(f"Could not find expansions for card: {card_name}\n\n")
-
-                if reply_text:
-                    reply_text += f"(data sourced from 17lands.com and scryfall.com)\n\n"
-                    # Check if we have already replied
-                    replied = False
-                    comment.refresh()
-                    for reply in comment.replies:
-                        if reply.author == reddit.user.me():
-                            replied = True
-                            break
-                    if not replied:
-                        try:
-                            comment.reply(reply_text)
-                            print(f"Replied to comment {comment.id}")
-                            # Sleep to respect rate limits
-                            time.sleep(10*60)
-                        except Exception as e:
-                            print(f"Failed to reply to comment {comment.id}: {e}")
+            reply_text = process_text_for_cards(text, pattern)
+            if reply_text:
+                # Check if we have already replied
+                replied = False
+                comment.refresh()
+                for reply in comment.replies:
+                    if reply.author == reddit.user.me():
+                        replied = True
+                        break
+                if not replied:
+                    try:
+                        comment.reply(reply_text)
+                        print(f"Replied to comment {comment.id}")
+                        time.sleep(10*60)
+                    except Exception as e:
+                        print(f"Failed to reply to comment {comment.id}: {e}")
         except Exception as e:
             print(f"Error processing comment {comment.id}: {e}")
             continue
+
+def stream_submissions(reddit, subreddit):
+    """Monitor submission stream for card references."""
+    pattern = re.compile(r'\[\[([^\[\]]+)\]\]')
+
+    for submission in subreddit.stream.submissions(skip_existing=True):
+        try:
+            # Skip own submissions
+            if submission.author == reddit.user.me():
+                continue
+
+            refresh_card_mapping_if_needed()
+
+            # Check both title and selftext, remove backslashes
+            text = (submission.title + " " + (submission.selftext or "")).replace('\\', '')
+            print(f"Submission: {text}")
+
+            reply_text = process_text_for_cards(text, pattern)
+            if reply_text:
+                # Check if we have already replied
+                replied = False
+                submission.comments.replace_more(limit=0)
+                for comment in submission.comments:
+                    if comment.author == reddit.user.me():
+                        replied = True
+                        break
+                if not replied:
+                    try:
+                        submission.reply(reply_text)
+                        print(f"Replied to submission {submission.id}")
+                        time.sleep(10*60)
+                    except Exception as e:
+                        print(f"Failed to reply to submission {submission.id}: {e}")
+        except Exception as e:
+            print(f"Error processing submission {submission.id}: {e}")
+            continue
+
+def refresh_card_mapping_if_needed():
+    """Refresh card-expansion mapping every 24 hours."""
+    global card_expansion_last_fetched
+    if time.time() - card_expansion_last_fetched > 86400:
+        build_card_expansion_mapping()
+        card_expansion_last_fetched = time.time()
+
+def process_text_for_cards(text, pattern):
+    """Process text and return reply with card data if cards are found."""
+    matches = pattern.findall(text)
+    if not matches:
+        return None
+
+    print(f"Found card names: {matches}")
+    reply_text = ''
+
+    for card_name in matches:
+        expansions = get_card_expansions(card_name)
+        if expansions:
+            card_found = False
+            for expansion in expansions:
+                if expansion in SUPPORTED_EXPANSIONS:
+                    card_data = get_card_data(expansion)
+                    if card_data:
+                        card_info = get_card_info(card_name, card_data)
+                        if card_info:
+                            print(f"Found data for card: {card_name} in expansion: {expansion}")
+                            alsa = card_info['avg_seen']
+                            gih_wr = card_info['ever_drawn_win_rate'] * 100
+                            color = card_info['color']
+                            rarity = card_info['rarity'][0].upper()
+                            card_id = card_info['id']
+                            lands_link = f"https://www.17lands.com/card_data/details?card_id={card_id}&expansion={expansion}"
+                            reply_text += f"[{card_info['name']}]({lands_link}) {color}-{rarity} ({expansion}); "
+                            reply_text += f"ALSA: {alsa:.2f}; GIH WR: {gih_wr:.2f}%  \n"
+                            card_found = True
+                            break
+                        else:
+                            print(f"Could not find data for card: {card_name} in expansion: {expansion}")
+                    else:
+                        print(f"Could not find card data for expansion: {expansion}")
+                else:
+                    print(f"Expansion {expansion} not supported by 17Lands.")
+            if not card_found:
+                print(f"Could not find data for card: {card_name}\n\n")
+        else:
+            print(f"Could not find expansions for card: {card_name}\n\n")
+
+    if reply_text:
+        reply_text += f"(data sourced from 17lands.com and scryfall.com)\n\n"
+
+    return reply_text if reply_text else None
 
 def build_card_expansion_mapping():
     global card_expansion_mapping
