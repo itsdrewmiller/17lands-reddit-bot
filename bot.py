@@ -147,7 +147,7 @@ def process_text_for_cards(text, pattern):
                             gih_wr = card_info['ever_drawn_win_rate'] * 100
                             color = card_info['color']
                             rarity = card_info['rarity'][0].upper()
-                            card_id = card_info['id']
+                            card_id = card_info['mtga_id']
                             lands_link = f"https://www.17lands.com/card_data/details?card_id={card_id}&expansion={expansion}"
                             reply_text += f"[{card_info['name']}]({lands_link}) {color}-{rarity} ({expansion}); "
                             reply_text += f"ALSA: {alsa:.2f}; GIH WR: {gih_wr:.2f}%  \n"
