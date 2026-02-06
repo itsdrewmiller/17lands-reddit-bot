@@ -145,7 +145,7 @@ def process_text_for_cards(text, pattern):
                             print(f"Found data for card: {card_name} in expansion: {expansion}")
                             alsa = card_info['avg_seen']
                             gih_wr = card_info['ever_drawn_win_rate'] * 100
-                            color = card_info['color']
+                            color = card_info['color'] or 'C'
                             rarity = card_info['rarity'][0].upper()
                             card_id = card_info['mtga_id']
                             lands_link = f"https://www.17lands.com/card_data/details?card_id={card_id}&expansion={expansion}"
