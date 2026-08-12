@@ -93,7 +93,7 @@ def stream_comments(reddit, subreddit):
             continue
 
 def stream_submissions(reddit, subreddit):
-    """Monitor submission stream for card refe
+    """Monitor submission stream for card references."""
     pattern = re.compile(r'\[\[([^\[\]]+)\]\]')
 
     for submission in subreddit.stream.submissions(skip_existing=True):
