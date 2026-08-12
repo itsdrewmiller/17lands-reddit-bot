@@ -15,13 +15,13 @@ card_data_cache = {}
 card_data_last_fetched = {}
 card_expansion_mapping = {}
 
-# Scryfall rate limiting (Scryfall asks for 50
+# Scryfall rate limiting (Scryfall asks for 50-100ms between requests
 # and a descriptive User-Agent; without them it returns 429s / blocks)
 SCRYFALL_MIN_INTERVAL = 0.15
 
 _scryfall_session = requests.Session()
 _scryfall_session.headers.update({
-    'User-Agent': 'lrcast-17lands-bot/1.0 (conom)',
+    'User-Agent': 'lrcast-17lands-bot/1.0 (contact: searchlightdevs@gmail.com)',
     'Accept': 'application/json',
 })
 _scryfall_last_request = 0.0
@@ -31,7 +31,7 @@ def main():
     # Set up Reddit instance using environment variables
     reddit = praw.Reddit(
         client_id=os.environ['REDDIT_CLIENT_ID'],
-        client_secret=os.environ['REDDIT_CLIENT'],
+        client_secret=os.environ['REDDIT_CLIENT_SECRET'],
         user_agent=os.environ['REDDIT_USER_AGENT'],
         username=os.environ['REDDIT_USERNAME'],
         password=os.environ['REDDIT_PASSWORD']
@@ -43,13 +43,13 @@ def main():
     build_card_expansion_mapping()
 
     # Refresh the mapping daily on a dedicated thread so the
-    # rebuild never blocks the comment/submiss
+    # rebuild never blocks the comment/submission streams
     refresher_thread = threading.Thread(target=mapping_refresher, daemon=True)
     refresher_thread.start()
 
-    # Start threads for both comments and subm
+    # Start threads for both comments and submissions
     comment_thread = threading.Thread(target=stream_comments, args=(reddit, subreddit), daemon=True)
-    submission_thread = threading.Thread(targe=(reddit, subreddit), daemon=True)
+    submission_thread = threading.Thread(target=stream_submissions, args=(reddit, subreddit), daemon=True)
 
     comment_thread.start()
     submission_thread.start()
@@ -59,17 +59,17 @@ def main():
         time.sleep(60)
 
 def stream_comments(reddit, subreddit):
-    """Monitor comment stream for card referen
+    """Monitor comment stream for card references."""
     pattern = re.compile(r'\[\[([^\[\]]+)\]\]')
 
     for comment in subreddit.stream.comments(skip_existing=True):
         try:
             # Skip own comments
-            if comment.author == reddit.user.m
+            if comment.author == reddit.user.me():
                 continue
 
             # Remove backslashes to handle escaped characters
-            text = comment.body.replace('\\',
+            text = comment.body.replace('\\', '')
             print(f"Comment: {text}")
 
             reply_text = process_text_for_cards(text, pattern)
@@ -83,13 +83,13 @@ def stream_comments(reddit, subreddit):
                         break
                 if not replied:
                     try:
-                        comment.reply(reply_te
+                        comment.reply(reply_text)
                         print(f"Replied to comment {comment.id}")
                         time.sleep(10*60)
                     except Exception as e:
-                        print(f"Failed to repl {e}")
+                        print(f"Failed to reply to comment {comment.id}: {e}")
         except Exception as e:
-            print(f"Error processing comment {
+            print(f"Error processing comment {comment.id}: {e}")
             continue
 
 def stream_submissions(reddit, subreddit):
@@ -99,11 +99,11 @@ def stream_submissions(reddit, subreddit):
     for submission in subreddit.stream.submissions(skip_existing=True):
         try:
             # Skip own submissions
-            if submission.author == reddit.use
+            if submission.author == reddit.user.me():
                 continue
 
             # Check both title and selftext, remove backslashes
-            text = (submission.title + " " + ().replace('\\', '')
+            text = (submission.title + " " + (submission.selftext or "")).replace('\\', '')
             print(f"Submission: {text}")
 
             reply_text = process_text_for_cards(text, pattern)
@@ -111,29 +111,29 @@ def stream_submissions(reddit, subreddit):
                 # Check if we have already replied
                 replied = False
                 submission.comments.replace_more(limit=0)
-                for comment in submission.comm
+                for comment in submission.comments:
                     if comment.author == reddit.user.me():
                         replied = True
                         break
                 if not replied:
                     try:
-                        submission.reply(reply
+                        submission.reply(reply_text)
                         print(f"Replied to submission {submission.id}")
                         time.sleep(10*60)
                     except Exception as e:
-                        print(f"Failed to repln.id}: {e}")
+                        print(f"Failed to reply to submission {submission.id}: {e}")
         except Exception as e:
-            print(f"Error processing submissio
+            print(f"Error processing submission {submission.id}: {e}")
             continue
 
 def mapping_refresher():
-    """Rebuild the card-expansion mapping ever
+    """Rebuild the card-expansion mapping every 24 hours."""
     while True:
         time.sleep(86400)
         build_card_expansion_mapping()
 
 def process_text_for_cards(text, pattern):
-    """Process text and return reply with card""
+    """Process text and return reply with card data if cards are found."""
     matches = pattern.findall(text)
     if not matches:
         return None
@@ -147,18 +147,18 @@ def process_text_for_cards(text, pattern):
             card_found = False
             for expansion in expansions:
                 if expansion in SUPPORTED_EXPANSIONS:
-                    card_data = get_card_data(
+                    card_data = get_card_data(expansion)
                     if card_data:
-                        card_info = get_card_i
+                        card_info = get_card_info(card_name, card_data)
                         if card_info:
-                            print(f"Found dataexpansion: {expansion}")
+                            print(f"Found data for card: {card_name} in expansion: {expansion}")
                             alsa = card_info['avg_seen']
-                            gih_wr = card_info100
+                            gih_wr = card_info['ever_drawn_win_rate'] * 100
                             color = card_info['color'] or 'C'
-                            rarity = card_info
+                            rarity = card_info['rarity'][0].upper()
                             card_id = card_info['mtga_id']
-                            lands_link =f"https://www.17lands.com/card_data/details?card_id={card_id}&expansion={expansion}"
-                            reply_text += f"[{_link}) {color}-{rarity} ({expansion}); "
+                            lands_link = f"https://www.17lands.com/card_data/details?card_id={card_id}&expansion={expansion}"
+                            reply_text += f"[{card_info['name']}]({lands_link}) {color}-{rarity} ({expansion}); "
                             reply_text += f"ALSA: {alsa:.2f}; GIH WR: {gih_wr:.2f}%  \n"
                             card_found = True
                             break
@@ -174,7 +174,7 @@ def process_text_for_cards(text, pattern):
             print(f"Could not find expansions for card: {card_name}\n\n")
 
     if reply_text:
-        reply_text += f"(data sourced from 17l\n\n"
+        reply_text += f"(data sourced from 17lands.com and scryfall.com)\n\n"
 
     return reply_text if reply_text else None
 
@@ -188,11 +188,11 @@ def scryfall_get(url, max_retries=3):
             wait = SCRYFALL_MIN_INTERVAL - (time.time() - _scryfall_last_request)
             if wait > 0:
                 time.sleep(wait)
-            _scryfall_last_request = time.time
+            _scryfall_last_request = time.time()
         response = _scryfall_session.get(url, timeout=30)
         if response.status_code == 429:
             retry_after = float(response.headers.get('Retry-After', 2 ** attempt))
-            print(f"Scryfall rate limited, sle
+            print(f"Scryfall rate limited, sleeping {retry_after}s")
             time.sleep(retry_after)
             continue
         return response
@@ -202,19 +202,19 @@ def build_card_expansion_mapping():
     global card_expansion_mapping
     new_mapping = {}
     for expansion in SUPPORTED_EXPANSIONS:
-        # Per-expansion try so one bad set can
+        # Per-expansion try so one bad set can't abort the whole build
         try:
-            print(f"Fetching card names for excryfall...")
+            print(f"Fetching card names for expansion {expansion} from Scryfall...")
             url = f'https://api.scryfall.com/cards/search?order=set&q=e%3A{expansion.lower()}&unique=cards'
             while url:
                 response = scryfall_get(url)
-                if response.status_code != 200
+                if response.status_code != 200:
                     print(f"Error fetching cards for expansion {expansion}: {response.status_code}")
                     break
                 data = response.json()
                 for card in data['data']:
                     card_name = card['name'].lower()
-                    sets = new_mapping.setdefa
+                    sets = new_mapping.setdefault(card_name, [])
                     if expansion not in sets:
                         sets.append(expansion)
                 url = data.get('next_page') if data.get('has_more') else None
@@ -222,11 +222,11 @@ def build_card_expansion_mapping():
             print(f"Error fetching expansion {expansion}: {e}")
     if new_mapping:
         # Atomic swap: streams keep reading the old mapping until the
-        # new one is fully built, and a failed
+        # new one is fully built, and a failed build keeps the old data
         card_expansion_mapping = new_mapping
-        print(f"Built card-expansion mapping (")
+        print(f"Built card-expansion mapping ({len(new_mapping)} cards).")
     else:
-        print("Card-expansion mapping build pristing mapping.")
+        print("Card-expansion mapping build produced no data; keeping existing mapping.")
 
 def get_card_expansions(card_name):
     # Local reference so the daily refresh can't swap the dict out mid-lookup
@@ -236,7 +236,7 @@ def get_card_expansions(card_name):
     if result:
         return result
     # Fuzzy matching if exact match not found
-    matches = get_close_matches(card_name_lowetoff=0.8)
+    matches = get_close_matches(card_name_lower, mapping.keys(), n=1, cutoff=0.8)
     if matches:
         return mapping[matches[0]]
     return None
@@ -244,17 +244,17 @@ def get_card_expansions(card_name):
 def get_card_data(expansion):
     current_time = time.time()
     # Refresh card data every 12 hours
-    if expansion in card_data_cache and (curreetched[expansion] < 43200):
+    if expansion in card_data_cache and (current_time - card_data_last_fetched[expansion] < 43200):
         return card_data_cache[expansion]
     else:
         data = fetch_card_data(expansion)
         if data:
             card_data_cache[expansion] = data
-            card_data_last_fetched[expansion]
+            card_data_last_fetched[expansion] = current_time
         return data
 
 def fetch_card_data(expansion, format='PremierDraft'):
-    url = 'https://www.17lands.com/card_rating
+    url = 'https://www.17lands.com/card_ratings/data'
     params = {
         'expansion': expansion,
         'format': format,
@@ -264,7 +264,7 @@ def fetch_card_data(expansion, format='PremierDraft'):
         response = requests.get(url, params=params)
         data = response.json()
         card_data = {card['name'].lower(): card for card in data}
-        print(f"Fetched latest card data for e17Lands.")
+        print(f"Fetched latest card data for expansion {expansion} from 17Lands.")
         return card_data
     except Exception as e:
         print(f"Error fetching card data for expansion {expansion}: {e}")
@@ -276,7 +276,7 @@ def get_card_info(card_name, card_data):
         return card_data[card_name_lower]
     else:
         # Fuzzy matching if exact match not found
-        matches = get_close_matches(card_name_=1, cutoff=0.8)
+        matches = get_close_matches(card_name_lower, card_data.keys(), n=1, cutoff=0.8)
         if matches:
             return card_data[matches[0]]
         else:
