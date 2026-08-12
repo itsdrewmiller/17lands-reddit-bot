@@ -183,7 +183,7 @@ def process_text_for_cards(text, pattern):
 
 def scryfall_get(url, max_retries=3):
     """GET from Scryfall, enforcing a minimum interval between requests
-    and retrying on 429 responses."""
+    and retrying on 429s, 5xx responses, and network errors."""
     global _scryfall_last_request
     response = None
     for attempt in range(max_retries + 1):
@@ -192,10 +192,20 @@ def scryfall_get(url, max_retries=3):
             if wait > 0:
                 time.sleep(wait)
             _scryfall_last_request = time.time()
-        response = _scryfall_session.get(url, timeout=30)
-        if response.status_code == 429:
+        try:
+            response = _scryfall_session.get(url, timeout=30)
+        except requests.RequestException as e:
+            if attempt == max_retries:
+                raise
+            backoff = 2 ** attempt
+            print(f"Scryfall request failed ({e}), retrying in {backoff}s")
+            time.sleep(backoff)
+            continue
+        if response.status_code == 429 or response.status_code >= 500:
+            if attempt == max_retries:
+                return response
             retry_after = float(response.headers.get('Retry-After', 2 ** attempt))
-            print(f"Scryfall rate limited, sleeping {retry_after}s")
+            print(f"Scryfall returned {response.status_code}, retrying in {retry_after}s")
             time.sleep(retry_after)
             continue
         return response
@@ -204,6 +214,7 @@ def scryfall_get(url, max_retries=3):
 def build_card_expansion_mapping():
     global card_expansion_mapping
     new_mapping = {}
+    failed_expansions = []
     for expansion in SUPPORTED_EXPANSIONS:
         # Per-expansion try so one bad set can't abort the whole build
         try:
@@ -213,21 +224,30 @@ def build_card_expansion_mapping():
                 response = scryfall_get(url)
                 if response.status_code != 200:
                     print(f"Error fetching cards for expansion {expansion}: {response.status_code}")
+                    failed_expansions.append(expansion)
                     break
                 data = response.json()
                 for card in data['data']:
                     card_name = card['name'].lower()
-                    sets = new_mapping.setdefault(card_name, [])
-                    if expansion not in sets:
-                        sets.append(expansion)
+                    # Double-faced cards: index the front face too, since
+                    # users often write [[Front]] without the back face
+                    names = {card_name}
+                    if ' // ' in card_name:
+                        names.add(card_name.split(' // ')[0].strip())
+                    for name in names:
+                        sets = new_mapping.setdefault(name, [])
+                        if expansion not in sets:
+                            sets.append(expansion)
                 url = data.get('next_page') if data.get('has_more') else None
         except Exception as e:
             print(f"Error fetching expansion {expansion}: {e}")
+            failed_expansions.append(expansion)
     if new_mapping:
         # Atomic swap: streams keep reading the old mapping until the
         # new one is fully built, and a failed build keeps the old data
         card_expansion_mapping = new_mapping
-        print(f"Built card-expansion mapping ({len(new_mapping)} cards).")
+        failed_note = f"; incomplete/failed: {', '.join(failed_expansions)}" if failed_expansions else ""
+        print(f"Built card-expansion mapping ({len(new_mapping)} cards{failed_note}).")
     else:
         print("Card-expansion mapping build produced no data; keeping existing mapping.")
 
@@ -277,13 +297,16 @@ def get_card_info(card_name, card_data):
     card_name_lower = card_name.lower()
     if card_name_lower in card_data:
         return card_data[card_name_lower]
-    else:
-        # Fuzzy matching if exact match not found
-        matches = get_close_matches(card_name_lower, card_data.keys(), n=1, cutoff=0.8)
-        if matches:
-            return card_data[matches[0]]
-        else:
-            return None
+    # Double-faced cards: Scryfall uses "Front // Back" but 17Lands
+    # names them by the front face only
+    front_face = card_name_lower.split(' // ')[0].strip()
+    if front_face in card_data:
+        return card_data[front_face]
+    # Fuzzy matching if exact match not found
+    matches = get_close_matches(card_name_lower, card_data.keys(), n=1, cutoff=0.8)
+    if matches:
+        return card_data[matches[0]]
+    return None
 
 if __name__ == '__main__':
     main()
