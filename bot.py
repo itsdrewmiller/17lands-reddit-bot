@@ -152,14 +152,17 @@ def process_text_for_cards(text, pattern):
                         card_info = get_card_info(card_name, card_data)
                         if card_info:
                             print(f"Found data for card: {card_name} in expansion: {expansion}")
+                            # Stats are null on 17Lands until a card has enough games
                             alsa = card_info['avg_seen']
-                            gih_wr = card_info['ever_drawn_win_rate'] * 100
+                            gih_wr = card_info['ever_drawn_win_rate']
+                            alsa_str = f"{alsa:.2f}" if alsa is not None else "N/A"
+                            gih_wr_str = f"{gih_wr * 100:.2f}%" if gih_wr is not None else "N/A"
                             color = card_info['color'] or 'C'
                             rarity = card_info['rarity'][0].upper()
                             card_id = card_info['mtga_id']
                             lands_link = f"https://www.17lands.com/card_data/details?card_id={card_id}&expansion={expansion}"
                             reply_text += f"[{card_info['name']}]({lands_link}) {color}-{rarity} ({expansion}); "
-                            reply_text += f"ALSA: {alsa:.2f}; GIH WR: {gih_wr:.2f}%  \n"
+                            reply_text += f"ALSA: {alsa_str}; GIH WR: {gih_wr_str}  \n"
                             card_found = True
                             break
                         else:
