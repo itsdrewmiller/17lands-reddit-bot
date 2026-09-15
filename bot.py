@@ -276,16 +276,18 @@ def get_card_data(expansion):
             card_data_last_fetched[expansion] = current_time
         return data
 
-def fetch_card_data(expansion, format='PremierDraft'):
-    url = 'https://www.17lands.com/card_ratings/data'
+def fetch_card_data(expansion, event_type='PremierDraft'):
+    """Fetch the same all-time card-rating view exposed by 17Lands' UI."""
+    url = 'https://www.17lands.com/api/card_data'
     params = {
         'expansion': expansion,
-        'format': format,
-        'start_date': '2000-01-01'
+        'event_type': event_type,
+        'time_period': 'ALL_TIME',
     }
     try:
         response = requests.get(url, params=params)
-        data = response.json()
+        payload = response.json()
+        data = payload['data']
         card_data = {card['name'].lower(): card for card in data}
         print(f"Fetched latest card data for expansion {expansion} from 17Lands.")
         return card_data
