@@ -165,7 +165,7 @@ def process_text_for_cards(text, pattern):
                             card_id = card_info['mtga_id']
                             lands_link = f"https://www.17lands.com/card_data/details?card_id={card_id}&expansion={expansion}"
                             scryfall_link = get_scryfall_link(card_info['name'], expansion)
-                            reply_text += f"[{card_info['name']}]({lands_link}) [(scryfall)]({scryfall_link}) {color}-{rarity} ({expansion}); "
+                            reply_text += f"[{card_info['name']}]({lands_link}) ([scryfall]({scryfall_link})) {color}-{rarity} ({expansion}); "
                             reply_text += f"ALSA: {alsa_str}; GIH WR: {gih_wr_str}  \n"
                             card_found = True
                             break
