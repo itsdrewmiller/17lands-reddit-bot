@@ -6,6 +6,7 @@ import threading
 import praw
 import requests
 from difflib import get_close_matches
+from urllib.parse import quote
 
 # List of expansions supported by 17Lands
 SUPPORTED_EXPANSIONS = ['TRK','FRA','HOB','MSH','SOS','TMT','ECL','TLA','OM1','SPM','EOE','FIN','TDM','DFT','PIO','FDN','DSK','KTK','XLN','RIX','DOM','GRN','RNA','WAR','ELD','THB','IKO','ZNR','KHM','STX','AFR','MID','VOW','NEO','SNC','DMU','BRO','ONE','MOM','MAT','WOE','LCI','MKM','OTJ','BLB','LTR','MH3','HBG','M21','M20','M19']
@@ -14,6 +15,8 @@ SUPPORTED_EXPANSIONS = ['TRK','FRA','HOB','MSH','SOS','TMT','ECL','TLA','OM1','S
 card_data_cache = {}
 card_data_last_fetched = {}
 card_expansion_mapping = {}
+# (lowercase card name, expansion) -> Scryfall card page URL
+card_scryfall_uris = {}
 
 # Scryfall rate limiting (Scryfall asks for 50-100ms between requests
 # and a descriptive User-Agent; without them it returns 429s / blocks)
@@ -161,7 +164,8 @@ def process_text_for_cards(text, pattern):
                             rarity = card_info['rarity'][0].upper()
                             card_id = card_info['mtga_id']
                             lands_link = f"https://www.17lands.com/card_data/details?card_id={card_id}&expansion={expansion}"
-                            reply_text += f"[{card_info['name']}]({lands_link}) {color}-{rarity} ({expansion}); "
+                            scryfall_link = get_scryfall_link(card_info['name'], expansion)
+                            reply_text += f"[{card_info['name']}]({lands_link}) [(scryfall)]({scryfall_link}) {color}-{rarity} ({expansion}); "
                             reply_text += f"ALSA: {alsa_str}; GIH WR: {gih_wr_str}  \n"
                             card_found = True
                             break
@@ -212,8 +216,9 @@ def scryfall_get(url, max_retries=3):
     return response
 
 def build_card_expansion_mapping():
-    global card_expansion_mapping
+    global card_expansion_mapping, card_scryfall_uris
     new_mapping = {}
+    new_uris = {}
     failed_expansions = []
     for expansion in SUPPORTED_EXPANSIONS:
         # Per-expansion try so one bad set can't abort the whole build
@@ -234,10 +239,14 @@ def build_card_expansion_mapping():
                     names = {card_name}
                     if ' // ' in card_name:
                         names.add(card_name.split(' // ')[0].strip())
+                    # Strip Scryfall's ?utm_source=api tracking query
+                    scryfall_uri = card.get('scryfall_uri', '').split('?')[0]
                     for name in names:
                         sets = new_mapping.setdefault(name, [])
                         if expansion not in sets:
                             sets.append(expansion)
+                        if scryfall_uri:
+                            new_uris[(name, expansion)] = scryfall_uri
                 url = data.get('next_page') if data.get('has_more') else None
         except Exception as e:
             print(f"Error fetching expansion {expansion}: {e}")
@@ -246,6 +255,7 @@ def build_card_expansion_mapping():
         # Atomic swap: streams keep reading the old mapping until the
         # new one is fully built, and a failed build keeps the old data
         card_expansion_mapping = new_mapping
+        card_scryfall_uris = new_uris
         failed_note = f"; incomplete/failed: {', '.join(failed_expansions)}" if failed_expansions else ""
         print(f"Built card-expansion mapping ({len(new_mapping)} cards{failed_note}).")
     else:
@@ -263,6 +273,14 @@ def get_card_expansions(card_name):
     if matches:
         return mapping[matches[0]]
     return None
+
+def get_scryfall_link(card_name, expansion):
+    uri = card_scryfall_uris.get((card_name.lower(), expansion))
+    if uri:
+        return uri
+    # Cards missing from the set search (e.g. bonus sheets) fall back to
+    # an exact-name search, which Scryfall redirects to the card page
+    return "https://scryfall.com/search?q=" + quote('!"' + card_name + '"')
 
 def get_card_data(expansion):
     current_time = time.time()
